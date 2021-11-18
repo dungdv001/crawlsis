@@ -1,4 +1,5 @@
 import time
+import platform
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.firefox.options import Options
@@ -17,9 +18,13 @@ def get_soup(url):
 
 
 def get_driver(url):
+    os_type = platform.system()
+    executable_path = './geckodriver'
+    if os_type == 'Windows':
+        executable_path += '.exe'
     options = Options()
     options.add_argument("--headless")
-    driver = webdriver.Firefox(executable_path='./geckodriver', options=options)
+    driver = webdriver.Firefox(executable_path=executable_path, options=options)
     driver.get(url)
     return driver
 
@@ -141,4 +146,3 @@ def console_ui():
 
 if __name__ == '__main__':
     console_ui()
-    
