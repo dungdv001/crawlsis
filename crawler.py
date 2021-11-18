@@ -37,6 +37,8 @@ def parse_course_general_info(course_tag: Tag):
     col_names = ['courseID', 'courseName', 'courseTime', 'numOfCredits', 'numOfFeeCredits', 'rate']
     course_general_info = dict()
     td_tags = course_tag.find_all('td', {'class': 'dxgv'})
+    if not td_tags:
+        return dict()
     td_tags.pop(0)
     count = 0
     for td_tag in td_tags:
@@ -54,7 +56,7 @@ def parse_course_general_info(course_tag: Tag):
 def parse_course_detail_info(course_tag: Tag):
     col_names = ['preCourse', 'englishName', 'abbrName', 'institute']
     course_detail_info = dict()
-    td_tag = course_tag.find('td', {'id': 'MainContent_gvCoursesGrid_tcdxdt0'})
+    td_tag = course_tag.find('td', {'class': 'dxgv dxgvDetailCell_SisTheme'})
     b_tags = td_tag.find_all('b')
     count = 0
     for b_tag in b_tags:
@@ -77,18 +79,38 @@ def get_course_info(course_id):
     time.sleep(1)
     table_element = course_list_page.find_element_by_id('MainContent_gvCoursesGrid_DXMainTable')
     try:
-        first_row = table_element.find_element_by_id('MainContent_gvCoursesGrid_DXDataRow0')
-        expand_button = first_row.find_element_by_class_name('dxGridView_gvDetailCollapsedButton_SisTheme')
-        expand_button.click()
-        time.sleep(1)
+        # find the exactly course
         html = course_list_page.page_source
         soup = BeautifulSoup(html, "html.parser")
         table_tag = soup.find('table', {'id': 'MainContent_gvCoursesGrid'})
-        first_data_row_tag = table_tag.find('tr', {'class': 'dxgvDataRow_SisTheme'})
-        first_detail_row_tag = table_tag.find('tr', {'class': 'dxgvDetailRow_SisTheme'})
+        all_data_row_tag = table_tag.find_all('tr', {'class': 'dxgvDataRow_SisTheme'})
+        found_tag = Tag(name='null_tag')
+        found_flag = False
+        for row_tag in all_data_row_tag:
+            general_info_course = parse_course_general_info(row_tag)
+            crawled_course_id = general_info_course.get('courseID')
+            if course_id.upper() == crawled_course_id:
+                found_tag = row_tag
+                found_flag = True
+                break
         course_info = dict()
-        course_info.update(parse_course_general_info(first_data_row_tag))
-        course_info.update(parse_course_detail_info(first_detail_row_tag))
+
+        if found_flag:
+            # get general info of the course
+            course_info.update(parse_course_general_info(found_tag))
+            # find detail info of the course
+            id_tag = found_tag.get_attribute_list('id')
+            target_row = table_element.find_element_by_id(id_tag[0])
+            expand_button = target_row.find_element_by_class_name('dxGridView_gvDetailCollapsedButton_SisTheme')
+            expand_button.click()
+            time.sleep(1)
+
+            # get detail info of the course
+            html = course_list_page.page_source
+            soup = BeautifulSoup(html, "html.parser")
+            table_tag = soup.find('table', {'id': 'MainContent_gvCoursesGrid'})
+            detail_row_tag = table_tag.find('tr', {'class': 'dxgvDetailRow_SisTheme'})
+            course_info.update(parse_course_detail_info(detail_row_tag))
         return course_info
     except NoSuchElementException as e:
         return None
@@ -119,3 +141,4 @@ def console_ui():
 
 if __name__ == '__main__':
     console_ui()
+    
